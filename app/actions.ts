@@ -9,6 +9,8 @@ export type EnquiryState = {
   status: "idle" | "success" | "error";
   message?: string;
   errors?: Partial<Record<FieldName, string>>;
+  /** When SMTP isn't configured: payload the browser relays to Web3Forms (free plan = client-side only). */
+  relay?: { id: string; keys: string[]; fields: Record<string, string> };
 };
 
 type FieldName =
@@ -110,10 +112,66 @@ export async function submitEnquiry(
   };
 
   const { emailed } = await deliverLead(lead);
-  console.info("[lead]", lead.id, lead.type, emailed ? "emailed" : "stored");
+
+  // Free email delivery via Web3Forms when SMTP isn't set up. Each access key
+  // delivers to the inbox it was created for, so a second key acts as a BCC.
+  const keys = [
+    process.env.WEB3FORMS_ACCESS_KEY || process.env.NEXT_PUBLIC_WEB3FORMS_ACCESS_KEY,
+    process.env.WEB3FORMS_BCC_ACCESS_KEY || process.env.NEXT_PUBLIC_WEB3FORMS_BCC_ACCESS_KEY,
+  ].filter(
+    (k): k is string => !!k && /^[0-9a-f-]{36}$/i.test(k.trim()),
+  ).map((k) => k.trim());
+  const relay = !emailed && keys.length ? { id: lead.id, keys, fields: web3formsFields(lead) } : undefined;
+  console.info("[lead]", lead.id, lead.type, emailed ? "emailed (SMTP)" : relay ? "relaying via Web3Forms" : "stored only");
 
   return {
     status: "success",
     message: `Thank you, ${data.name.split(" ")[0]} — your enquiry has been received${emailed ? " and a confirmation is on its way to your inbox" : ""}. We'll get back to you shortly. Reference: ${lead.id}`,
+    relay,
   };
+}
+
+/** Flat, labelled fields — Web3Forms emails them as a table, in this order. */
+function web3formsFields(l: Lead): Record<string, string> {
+  const f = l.footprint as Record<string, unknown>;
+  const c = (f.campaign ?? {}) as Record<string, string>;
+  const t = Number(f.timeOnSiteSec ?? 0);
+  const out: Record<string, string | undefined> = {
+    subject: `🍄 New lead · ${l.type} · ${l.name}${l.business ? ` (${l.business})` : ""}`,
+    from_name: "Consulting Farms Website",
+    email: l.email, // reply-to
+    "Lead ID": l.id,
+    Name: l.name,
+    Business: l.business,
+    "Phone / WhatsApp": l.phone,
+    "WhatsApp link": `https://wa.me/${l.phone.replace(/[^\d]/g, "")}`,
+    "Enquiry type": l.type,
+    Product: l.product,
+    Quantity: l.quantity,
+    "Delivery area": l.area,
+    Message: l.message,
+    "Calculator estimate": l.estimate,
+    "— Lead footprint —": "",
+    "Source / referrer": String(f.referrer ?? ""),
+    "Landing page": String(f.landingPage ?? ""),
+    "Submitted from": String(f.submittedFrom ?? ""),
+    "UTM source": c.utm_source,
+    "UTM medium": c.utm_medium,
+    "UTM campaign": c.utm_campaign,
+    "UTM term": c.utm_term,
+    "Google Ads click (gclid)": c.gclid,
+    "Meta click (fbclid)": c.fbclid,
+    "First visit": String(f.firstSeen ?? ""),
+    "Page views": f.pageviews ? String(f.pageviews) : "",
+    "Time on site": t ? `${Math.floor(t / 60)} min ${t % 60}s` : "",
+    Journey: Array.isArray(f.journey) ? f.journey.join(" → ") : "",
+    Device: `${f.device ?? ""} · ${f.screen ?? ""}`,
+    Language: String(f.language ?? ""),
+    Timezone: String(f.timezone ?? ""),
+    Country: String(f.country ?? ""),
+    IP: String(f.ip ?? ""),
+    Browser: String(f.userAgent ?? ""),
+    "Submitted at": new Date(l.submittedAt).toUTCString(),
+  };
+  return Object.fromEntries(Object.entries(out).filter(([k, v]) => v || k.startsWith("—")).map(([k, v]) => [k, v ?? ""]));
 }

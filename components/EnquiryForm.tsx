@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useActionState, useEffect, useRef, useState, startTransition } from "react";
 import { submitEnquiry, type EnquiryState } from "@/app/actions";
 import { getFootprint } from "@/lib/footprint";
+import { useLeadRelay } from "@/lib/useLeadRelay";
+import { site, whatsappLink } from "@/lib/site";
 import { enquiryTypes, products } from "@/lib/site";
 import { Check, ArrowRight } from "./Icons";
 
@@ -13,6 +15,7 @@ export const ENQUIRE_EVENT = "cf:enquire";
 
 export default function EnquiryForm() {
   const [state, action, pending] = useActionState(submitEnquiry, initial);
+  const relay = useLeadRelay(state);
   const [product, setProduct] = useState("");
   const [type, setType] = useState<string>(enquiryTypes[0]);
   const [clientErrors, setClientErrors] = useState<Record<string, string>>({});
@@ -68,6 +71,13 @@ export default function EnquiryForm() {
         </span>
         <h3 className="font-display text-2xl text-primary">Enquiry received</h3>
         <p className="mt-3 max-w-sm text-ink/70">{state.message}</p>
+        {relay === "sending" && <p className="mt-3 text-sm text-ink/50">Notifying our team…</p>}
+        {relay === "failed" && (
+          <p className="mt-4 max-w-sm rounded-xl bg-tint px-4 py-3 text-sm text-primary">
+            We saved your enquiry but couldn&apos;t notify the team instantly. For a faster reply,{" "}
+            <a href={whatsappLink(`Hello ${site.name}, I just sent an enquiry on your website.`)} target="_blank" rel="noopener noreferrer" className="font-semibold underline">message us on WhatsApp</a>.
+          </p>
+        )}
       </div>
     );
   }

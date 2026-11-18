@@ -5,6 +5,7 @@ import { startTransition, useActionState, useEffect, useId, useMemo, useState } 
 import { CURRENCIES, FALLBACK_RATES, guessCurrency, isCurrency, type CurrencyCode, type Rates } from "@/lib/currency";
 import { submitEnquiry, type EnquiryState } from "@/app/actions";
 import { getFootprint } from "@/lib/footprint";
+import { useLeadRelay } from "@/lib/useLeadRelay";
 import {
   mushroomOptions, greenhouseOptions, consultingOptions,
   estimateMushroom, estimateGreenhouse, formatRange, summarizeEstimate,
@@ -166,6 +167,7 @@ export default function CostCalculator({ rates = FALLBACK_RATES }: { rates?: Rat
   const summary = useMemo(() => summarizeEstimate(kind, kind === "mushroom" ? m : g, est, ccy, rates), [kind, m, g, est, ccy, rates]);
 
   const [lead, sendLead, pending] = useActionState(submitEnquiry, initialLead);
+  const relay = useLeadRelay(lead);
   const [showForm, setShowForm] = useState(false);
 
   const onLead = (e: React.FormEvent<HTMLFormElement>) => {
@@ -318,6 +320,8 @@ export default function CostCalculator({ rates = FALLBACK_RATES }: { rates?: Rat
                 <div>
                   <p className="font-semibold">Estimate sent to our team</p>
                   <p className="mt-1 text-sm text-white/70">{lead.message}</p>
+                  {relay === "sending" && <p className="mt-2 text-xs text-white/50">Notifying our team…</p>}
+                  {relay === "failed" && <p className="mt-2 text-xs text-highlight">Saved — but the instant notification failed. WhatsApp us for a faster reply.</p>}
                 </div>
               </div>
             ) : !showForm ? (

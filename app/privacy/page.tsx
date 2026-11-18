@@ -36,7 +36,8 @@ export default function PrivacyPage() {
                 submission: the page you first landed on, the referring website or campaign link (for example UTM
                 tags), pages viewed, time on site, device type, browser, language, time zone, IP address and
                 approximate country. This is stored in your browser only until you submit a form, and is not used for
-                advertising profiles or sold to anyone.
+                advertising profiles or sold to anyone. Enquiry notifications are delivered to our inbox through our
+                email provider (Web3Forms or our mail server) solely to pass your message on to us.
               </p>
             </section>
             <section>

@@ -130,7 +130,7 @@ export async function deliverLead(l: Lead): Promise<{ emailed: boolean }> {
   await backup(l);
   const t = getTransport();
   if (!t) {
-    console.warn("[lead] SMTP not configured — lead saved to data/leads.jsonl only:", l.id);
+    console.info("[lead] SMTP not configured — lead backed up to data/leads.jsonl:", l.id);
     return { emailed: false };
   }
   const from = process.env.MAIL_FROM || `${site.name} <${process.env.SMTP_USER}>`;
